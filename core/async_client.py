@@ -53,12 +53,13 @@ class AsyncStreamClient:
                 result.append(data)
         return result
 
-    def on_exit(self):
-        asyncio
-
     def run(self, req):
         raw = asyncio.run(self.on_receive(req))
-        return raw
+        return raw    
+
+    def on_exit(self):
+        print("Closing socket")
+        self.sock.close()
 
 
 class AsyncDatagramClient(object):
@@ -70,54 +71,86 @@ class AsyncDatagramClient(object):
         # Resource temporarily unavailable need sleep or pdb
 
     def __init__(self, addr):
-        self.buffer = 1024
-        self.addr = ('127.0.0.1', 9999)
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) 
+        self.buffer_size = 1024
+        self.addr = addr
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setblocking(False)
 
     async def get_data(self, message):
-       # As you can see, there is no connect() call; UDP has no connections.
-       # Instead, data is directly sent to the recipient via sendto().
-       # sock.sendto(bytes(message + "\n", "utf-8"), (host, port))
-       # Get a reference to the event loop as we plan to use
-       # low-level APIs.
         loop = asyncio.get_running_loop()
-        transport, protocol = await loop.create_datagram_endpoint(asyncio.DatagramProtocol, remote_addr=self.addr)
-
-        # Send the message
-        await loop.sock_sendto(self.sock, message, self.addr)
+        
+        print(f"Sending message to {self.addr}")
+        # no attribute
+        # loop.sock_sendto(self.sock, message, self.addr)
+        self.sock.sendto(message, self.addr)
         
         chunks = b""
-        while True:
-            # recvfrom 无连接 
-            recv_message, _ = await loop.sock_recvfrom(self.sock, self.buffer)
-            # pdb.set_trace()
-            print(f"Received: {recv_message}")
-            chunks = chunks + recv_message 
-            if recv_message == b"sentinel": 
+        try:
+            while True:
                 try:
-                    received = pickle.loads(chunks)
-                    yield received
+                    # no attribute
+                    # recv_message, _ = await loop.sock_recvfrom (self.sock, self.buffer)
+                    recv_message = await loop.sock_recv (self.sock, self.buffer_size)
+                    # print(f"Received chunk: {recv_message[:100]}...")  # Print first 100 bytes
+                    
+                    if not recv_message:
+                        print("Connection closed by server")
+                        break
+                        
+                    chunks += recv_message
+                    
+                    if recv_message == b"sentinel":
+                        print("Sentinel received, processing chunks...")
+                        try:
+                            received = pickle.loads(chunks[:-8])  # Remove sentinel
+                            # print(f"Successfully unpickled data: {received}")
+                            yield received
+                        except Exception as e:
+                            print(f"Error unpickling data: {e}")
+                            print(f"Chunks content: {chunks}")
+                        chunks = b""
+                    elif recv_message == b"shutdown":
+                        print("Shutdown signal received")
+                        break
+                    
+                except BlockingIOError:
+                    print("Socket would block, waiting...")
+                    await asyncio.sleep(0.1)
                 except Exception as e:
-                    print("error", e)
-                print("Received: {}".format(len(received)))
-                chunks = b""
-            elif recv_message == b"shutdown":
-                break
-            print("not nil", len(chunks))
+                    print(f"Error during reception: {e}")
+                    break
+                    
+        except Exception as e:
+            print(f"Outer loop error: {e}")
+        finally:
+            print("Exiting get_data")
 
     async def on_receive(self, req):
         # Get a reference to the event loop as we plan to use
         # low-level APIs.
         datas = []
-        message = pickle.dumps(req.model_dump())
-        async for data in self.get_data(message):
-            print("data", data)
-            datas.append(data)
+        try:
+            message = pickle.dumps(req.model_dump())
+            print(f"Serialized request: {message[:100]}...")  # Print first 100 bytes
+            
+            async for data in self.get_data(message):
+                # print(f"Received data chunk: {data}")
+                datas.append(data)
+                
+        except Exception as e:
+            print(f"Error in on_receive: {e}")
         return datas
     
-    def on_exit(self):
-        self.sock.close()
-
     def run(self, req):
-        resp = asyncio.run(self.on_receive(req))
-        return resp
+        print(f"Starting run with request: {req}")
+        try:
+            resp = asyncio.run(self.on_receive(req))
+            print(f"Run completed with response: {resp}")
+            return resp
+        except Exception as e:
+            print(f"Error in run: {e}")
+            raise
+
+    def on_exit(self):
+        print("Closing socket")
+        self.sock.close()
