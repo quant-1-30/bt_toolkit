@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import pdb
 import socket
 import asyncio
 import pickle
-from queue import Queue
+import httpx
+from urllib.parse import urlencode, urljoin
+from typing import Dict, Any
 
 
 class AsyncStreamClient:
@@ -14,8 +15,8 @@ class AsyncStreamClient:
     # getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
 
     def __init__(self, addr):
-        self.buffer = 1024
         self.host, self.port = addr
+        self.buffer = 1024
 
     async def get_data(self, req):
         reader, writer = await asyncio.open_connection(host=self.host, port=self.port)
@@ -154,3 +155,45 @@ class AsyncDatagramClient(object):
     def on_exit(self):
         print("Closing socket")
         self.sock.close()
+
+
+    class AsyncWebClient:
+
+        def __init__(self, addr):
+            self.addr = addr
+            self.client = httpx.AsyncClient()
+
+        async def get_data(self, req_map: Dict[str, Any]):
+            endpoint = req_map.pop("endpoint", '')
+            params = req_map.pop("params", {})
+            async with httpx.AsyncClient() as client:
+                url = urljoin(self.addr, endpoint)
+                resp = await client.get(url, params=params)
+            return resp.json()
+        
+        async def get_stream(self, req_map: Dict[str, Any]):
+            endpoint = req_map.pop("endpoint", '')
+            method = req_map.pop("method", "GET")
+            params = req_map.pop("params", {})
+            url = urljoin(self.addr, endpoint)
+            async with httpx.AsyncClient() as client:
+                async with client.stream(method, url, params=params) as response:
+                    # aiter_bytes / aiter_text / aiter_lines  
+                    async for chunk in response.aiter_bytes():
+                        yield chunk
+
+        async def on_receive(self, req_map: Dict[str, Any]):
+            stream = req_map.pop("stream", False)
+            if not stream:
+                resp = await self.get_data(req_map)
+                return resp
+            # stream
+            result = []
+            async for message in self.get_stream(req_map):
+                result.append(message)
+            return result
+
+        def run(self, req_map: Dict[str, Any]):
+            return asyncio.run(self.on_receive(req_map))
+
+

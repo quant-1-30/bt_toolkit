@@ -1,8 +1,9 @@
 # /usr/bin/env python3
 # -*- coding: utf-8 -*-
-from typing import List
-from core.event import ReqEvent, BrokerEvent, Event, SyncEvent, LogEvent
-from core.async_client import AsyncStreamClient
+from typing import Dict, Any
+from core.event import LoginEvent,TradeEvent
+from core.async_client import AsyncWebClient
+from core.const import Endpoint, Method
 
 
 class TradeApi(object):
@@ -25,33 +26,30 @@ class TradeApi(object):
     """
     __slots__ = ("fund",)
 
-    def __init__(self, usr, pwd, auto=True, addr="localhost:8000"):
+    def __init__(self, addr="localhost:8000"):
         # validate and ssl
-        self.async_client = AsyncStreamClient(addr)
-        self.trade_username = usr
-        self.trade_password = pwd
-        if auto:
-            token = self.on_login(usr, pwd)
+        self.async_client = AsyncWebClient(addr)
         self.trade_token = ""
 
-    # def _emit_event(self, table, meta):
-    #     req = ReqEvent(rpc_type=table, meta=meta)
-    #     resp = self.async_client.run(req)
-    #     return resp[0]
+    def on_login(self, login_event: LoginEvent):
+        # return token   
+        req = {"endpoint": Endpoint.LOGIN, "method": Method.POST, "params": login_event.model_dump()}
+        resp =self.async_client.run(req)
+        if resp["token"]:
+            self.trade_token = resp["token"]
+            return True
+        return False
 
-    async def on_login(self, user_id, exp_id):
-        pass
-
-    async def on_trade(self, trade_event) -> None:
-        pass
+    def on_trade(self, trade_event: TradeEvent):
+        # transaction status
+        req = {"endpoint": Endpoint.TRADE, "method": Method.POST, "params": trade_event.model_dump()}
+        status = self.async_client.run(req)
+        return status
     
-    async def on_record(self, sync_event) -> None:
+    def on_metrics(self, sdate, edate) -> Dict[str, Any]:
         """
             sync close and dividend or right
         """
-        pass
-    
-    async def on_diconnect(self):
-        """
-            stop tradeApi
-        """
+        req = {"endpoint": Endpoint.METRICS, "method": Method.GET, "params": {"sdate": sdate, "edate": edate}}
+        metrics = self.async_client.run(req)
+        return metrics
