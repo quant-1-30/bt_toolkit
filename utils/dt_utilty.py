@@ -15,19 +15,21 @@ MAX_MONTH_RANGE = 23
 MAX_WEEK_RANGE = 5
 
 
-def date2utc(date, tzinfo="Asia/Shanghai"):
-    struct_dt = datetime.datetime.strptime(str(date), '%Y%m%d')
-    struct_dt = struct_dt.astimezone(tz=pytz.timezone(tzinfo))
-    struct_dt = struct_dt.replace(tzinfo=datetime.timezone.utc) 
-    return struct_dt
+def str2dt(dt:str, fmt="%Y%m%d%H%M"):
+    struct_date = datetime.datetime.strptime(dt, fmt)
+    return struct_date
 
 
-def market_utc(date, tzinfo="Asia/Shanghai"):
-    format_dt = date2utc(date, tzinfo=tzinfo)
-    m_open = format_dt + datetime.timedelta(hours=9, minutes=30)
-    m_close = format_dt + datetime.timedelta(hours=15, minutes=0)
+def market_utc(created_at, format = "%Y%m%d%H%M%S", tzinfo="UTC"):
+    dt = str2dt(str(created_at), fmt=format)
+    fmt_dt = str2dt(dt.strftime("%Y%m%d"), fmt="%Y%m%d")
+    open = fmt_dt + datetime.timedelta(hours=9, minutes=30)
+    utc_open = open.astimezone(tz=pytz.timezone(tzinfo))
+    close = fmt_dt + datetime.timedelta(hours=15, minutes=0)
+    utc_close = close.astimezone(tz=pytz.timezone(tzinfo))
+    # replace(tzinfo=datetime.timezone.utc) 
     # trans to utc
-    return m_open, m_close
+    return utc_open, utc_close
 
 def elapsed(dt, fmt="%Y%m%d%H%M"):
     # %-m 不补0
@@ -47,9 +49,6 @@ def loc2dt(anchor, dt):
         offset_dt = struct_dt + datetime.timedelta(seconds=ifAm * 3) + datetime.timedelta(hours=13)
     return offset_dt
 
-def str2dt(dt:str, fmt="%Y%m%d%H%M"):
-    struct_date = datetime.datetime.strptime(dt, fmt)
-    return struct_date
 
 def locate_pos(price, minutes, direction):
     print('minutes locate_pos', minutes)
