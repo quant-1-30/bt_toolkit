@@ -20,16 +20,20 @@ def str2dt(dt:str, fmt="%Y%m%d%H%M"):
     return struct_date
 
 
-def market_utc(created_at, format = "%Y%m%d%H%M%S", tzinfo="UTC"):
-    dt = str2dt(str(created_at), fmt=format)
-    fmt_dt = str2dt(dt.strftime("%Y%m%d"), fmt="%Y%m%d")
+def market_utc(created_at, fmt= "%Y%m%d%H%M%S", tzinfo="UTC"):
+    dt = str2dt(str(created_at), fmt=fmt)
+    if fmt != "%Y%m%d":
+        fmt_dt = str2dt(dt.strftime("%Y%m%d"), fmt="%Y%m%d")
+    else:
+        fmt_dt = dt
     open = fmt_dt + datetime.timedelta(hours=9, minutes=30)
     utc_open = open.astimezone(tz=pytz.timezone(tzinfo))
     close = fmt_dt + datetime.timedelta(hours=15, minutes=0)
+    # close = fmt_dt + datetime.timedelta(hours=14, minutes=59)
     utc_close = close.astimezone(tz=pytz.timezone(tzinfo))
     # replace(tzinfo=datetime.timezone.utc) 
     # trans to utc
-    return utc_open, utc_close
+    return utc_open.timestamp(), utc_close.timestamp()
 
 def elapsed(dt, fmt="%Y%m%d%H%M"):
     # %-m 不补0

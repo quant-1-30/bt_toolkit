@@ -51,7 +51,7 @@ class QuoteApi(object):
             assert req_meta.start_date  == req_meta.end_date, "start_date and end_date must be the same"
             s, e = market_utc(req_meta.start_date)
 
-            req_meta =  QuoteMeta(start_date=int(s.timestamp()), end_date=int(e.timestamp()), sid=req_meta.sid)
+            req_meta =  QuoteMeta(start_date=s, end_date=e, sid=req_meta.sid)
 
         req = {"rpc_type": "tick", 
                "meta": req_meta.model_dump()}

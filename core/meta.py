@@ -89,9 +89,10 @@ class OrderMeta(pydantic.BaseModel):
 #         allow_mutation = False
 
 
-# class EventMeta(pydantic.BaseModel):
-#     experiment_id: str
-#     meta: Dict[str, Any]
+class EventMeta(pydantic.BaseModel):
+
+    event_type: str
+    meta: QuoteMeta
 
 
 # class TradeMeta(pydantic.BaseModel):

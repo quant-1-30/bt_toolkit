@@ -3,7 +3,7 @@
 
 from typing import Dict, Any
 from urllib.parse import urljoin
-from core.meta import LoginMeta, QuoteMeta, OrderMeta, AuthMeta
+from core.meta import LoginMeta, QuoteMeta, OrderMeta, AuthMeta, EventMeta
 from core.async_client import AsyncApiClient
 from core.const import ApiEndpoint, ApiMethod
 from core.quoteApi import quote_api
@@ -68,7 +68,6 @@ class TradeApi(object):
                                                        end_date=int(order.created_at)), 
                                                        intraday=True)
 
-        import pdb; pdb.set_trace()
         params = {"auth": auth_meta.model_dump(),
                   "orderMeta": order_meta, 
                   "meta": intraday_ticks}
@@ -81,12 +80,13 @@ class TradeApi(object):
         resp = self.async_client.run(req)
         return resp
     
-    def on_event(self, auth_meta: AuthMeta, meta: QuoteMeta):
-        req = QuoteMeta(sid=meta.sids, start_date=meta.session_ix, end_date=meta.session_ix)
+    def on_event(self, auth_meta: AuthMeta, event_meta: EventMeta):
 
-        event_meta = quote_api.onSubEvent(req)
+        event_data = quote_api.onSubEvent(event_meta.event_type, event_meta.meta)
+        import pdb; pdb.set_trace()
         params = {"auth": auth_meta.model_dump(),
-                  "meta": event_meta}
+                  "meta": event_data,
+                  "event_type": event_meta.event_type}
 
         req = {"endpoint": urljoin(self.addr, ApiEndpoint.EVENT.value), 
                "method": ApiMethod.POST.value, 
@@ -95,11 +95,13 @@ class TradeApi(object):
         return resp
     
     def on_sync(self, auth_meta: AuthMeta, meta: QuoteMeta):
-        ts = market_utc(meta.session_ix, fmt="%Y%m%d")
-        closes = quote_api.onSubTicks(QuoteMeta(sid=meta.sids, start_date=ts[0], end_date=ts[1]))
+        ts = market_utc(meta.start_date, fmt="%Y%m%d")
+        resp = quote_api.onSubTicks(QuoteMeta(sid=meta.sid, start_date=ts[1], end_date=ts[1]))
+        closes = {item["line"][0][0]: item["line"][0][4] for item in resp}
 
         params = {"auth": auth_meta.model_dump(),
-                  "meta": closes}
+                  "meta": closes,
+                  "session_ix": meta.start_date}
 
         req = {"endpoint": urljoin(self.addr, ApiEndpoint.SYNC.value), 
                "method": ApiMethod.POST.value, 
