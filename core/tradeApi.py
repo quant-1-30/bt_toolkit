@@ -3,7 +3,7 @@
 
 from typing import Dict, Any
 from urllib.parse import urljoin
-from core.meta import LoginMeta, QuoteMeta, OrderMeta, AuthMeta, EventMeta
+from core.meta import LoginMeta, QuoteMeta, OrderMeta, AuthMeta, EventMeta, RangeMeta
 from core.async_client import AsyncApiClient
 from core.const import ApiEndpoint, ApiMethod
 from core.quoteApi import quote_api
@@ -50,6 +50,13 @@ class TradeApi(object):
                "params": {"token": auth_meta.token}}
         resp = self.async_client.run(req)
         return resp 
+    
+    def on_display(self, auth_meta: AuthMeta):
+        req = {"endpoint": urljoin(self.addr, ApiEndpoint.DISPLAY.value), 
+               "method": ApiMethod.GET.value, 
+               "params": {"token": auth_meta.token}}
+        resp = self.async_client.run(req)
+        return resp 
 
     def on_trade(self, auth_meta: AuthMeta, order: OrderMeta):
 
@@ -68,14 +75,17 @@ class TradeApi(object):
                                                        end_date=int(order.created_at)), 
                                                        intraday=True)
 
-        params = {"auth": auth_meta.model_dump(),
-                  "orderMeta": order_meta, 
-                  "meta": intraday_ticks}
-        
-        
+        # params = {"auth": auth_meta.model_dump(),
+        params = {
+            "experiment_id": auth_meta.experiment_id,
+            "orderMeta": order_meta, 
+            "meta": intraday_ticks
+        }
+
         # transaction status
         req = {"endpoint": urljoin(self.addr, ApiEndpoint.TRADE.value), 
                "method": ApiMethod.POST.value, 
+               "headers": {"Authorization": "Bearer a8894326-edf0-48ff-8a15-ca82e2d8a74f"},
                "params": params}
         resp = self.async_client.run(req)
         return resp
@@ -83,13 +93,15 @@ class TradeApi(object):
     def on_event(self, auth_meta: AuthMeta, event_meta: EventMeta):
 
         event_data = quote_api.onSubEvent(event_meta.event_type, event_meta.meta)
-        import pdb; pdb.set_trace()
-        params = {"auth": auth_meta.model_dump(),
-                  "meta": event_data,
-                  "event_type": event_meta.event_type}
+        params = {
+            "experiment_id": auth_meta.experiment_id,
+            "meta": event_data,
+            "event_type": event_meta.event_type
+        }
 
         req = {"endpoint": urljoin(self.addr, ApiEndpoint.EVENT.value), 
                "method": ApiMethod.POST.value, 
+               "headers": {"Authorization": "Bearer a8894326-edf0-48ff-8a15-ca82e2d8a74f"},
                "params": params}
         resp = self.async_client.run(req)
         return resp
@@ -99,24 +111,30 @@ class TradeApi(object):
         resp = quote_api.onSubTicks(QuoteMeta(sid=meta.sid, start_date=ts[1], end_date=ts[1]))
         closes = {item["line"][0][0]: item["line"][0][4] for item in resp}
 
-        params = {"auth": auth_meta.model_dump(),
-                  "meta": closes,
-                  "session_ix": meta.start_date}
+        params = {
+            "experiment_id": auth_meta.experiment_id,
+            "meta": closes,
+            "session_ix": meta.start_date
+        }
 
         req = {"endpoint": urljoin(self.addr, ApiEndpoint.SYNC.value), 
                "method": ApiMethod.POST.value, 
+               "headers": {"Authorization": "Bearer a8894326-edf0-48ff-8a15-ca82e2d8a74f"},
                "params": params}
         resp = self.async_client.run(req)
         return resp
     
-    def on_account(self, auth_meta: AuthMeta, meta: QuoteMeta) -> Dict[str, Any]:
+    def on_account(self, auth_meta: AuthMeta, meta: RangeMeta) -> Dict[str, Any]:
         """
             sync close and dividend or right
         """
-        params = {"auth": auth_meta.model_dump(),
-                  "meta": meta.model_dump()}
+        params = {
+            "experiment_id": auth_meta.experiment_id,
+            "meta": meta.model_dump()
+        }
         req = {"endpoint": urljoin(self.addr, ApiEndpoint.ACCOUNT.value), 
-               "method": ApiMethod.GET.value, 
+               "method": ApiMethod.GET.value,
+               "headers": {"Authorization": "Bearer a8894326-edf0-48ff-8a15-ca82e2d8a74f"},
                "params": params}
         resp = self.async_client.run(req)
         return resp
@@ -125,10 +143,13 @@ class TradeApi(object):
         """
             sync close and dividend or right
         """
-        params = {"auth": auth_meta.model_dump(),
-                  "meta": meta.model_dump()}
+        params = {
+            "experiment_id": auth_meta.experiment_id,
+            "meta": meta.model_dump()
+        }
         req = {"endpoint": urljoin(self.addr, ApiEndpoint.METRICS.value), 
-               "method": ApiMethod.GET.value    , 
+               "method": ApiMethod.GET.value, 
+               "headers": {"Authorization": "Bearer a8894326-edf0-48ff-8a15-ca82e2d8a74f"},
                "params": params}
         metrics = self.async_client.run(req)
         return metrics

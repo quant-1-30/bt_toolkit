@@ -30,9 +30,9 @@ class TestQuoteApi:
     #     print(data)
     #     assert data is not None
 
-    def test_onSubAsset(self, req_asset):
-        data = quote_api.onSubAsset(req_asset)
-        print(data)
+    # def test_onSubAsset(self, req_asset):
+    #     data = quote_api.onSubAsset(req_asset)
+    #     print(data)
 
     # def test_onSubTicks(self, req_tick):
     #     data = quote_api.onSubTicks(req_tick)

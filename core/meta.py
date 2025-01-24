@@ -40,6 +40,7 @@ class LoginMeta(pydantic.BaseModel):
     # model_config = {"private_attributes": {"_secret"}}
 
 class AuthMeta(pydantic.BaseModel):
+
     token: str  
     experiment_id: str = Field(default="")
 
@@ -93,6 +94,12 @@ class EventMeta(pydantic.BaseModel):
 
     event_type: str
     meta: QuoteMeta
+
+
+class RangeMeta(pydantic.BaseModel):
+
+    start_dt: int
+    end_dt: int
 
 
 # class TradeMeta(pydantic.BaseModel):

@@ -17,6 +17,7 @@ class QuoteType(Enum):
 class ApiEndpoint(Enum):
     LOGIN = "user/on_login"
     DEPLOY = "user/on_deploy"
+    DISPLAY = "user/on_display"
     TRADE = "trade/on_trade"
     SYNC = "trade/on_sync"
     EVENT = "trade/on_event"

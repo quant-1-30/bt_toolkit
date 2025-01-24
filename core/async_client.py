@@ -169,12 +169,13 @@ class AsyncApiClient:
         endpoint = req_map.pop("endpoint", '')
         params = req_map.pop("params", {})
         method = req_map.pop("method", "GET")
+        headers = req_map.pop("headers", {})
         async with httpx.AsyncClient() as client:
             url = urljoin(self.addr, endpoint)
             if method == "GET":
-                resp = await client.get(url, params=params)
+                resp = await client.get(url, params=params, headers=headers)
             else:
-                resp = await client.post(url, json=params)
+                resp = await client.post(url, json=params, headers=headers)
         return resp.json()
     
     async def get_stream(self, req_map: Dict[str, Any]):
